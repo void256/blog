@@ -1,1 +1,1 @@
-# blog
+Nifty GUI Blog
