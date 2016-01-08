@@ -12,5 +12,5 @@ Your Open Source Java OpenGL GUI. Interactive user interfaces for games or simil
 
 
 
-[https://github.com/void256/nifty-gui](https://github.com/void256/nifty-gui)
+[https://github.com/nifty-gui/nifty-gui.git](https://github.com/nifty-gui/nifty-gui.git)
 
