@@ -1,7 +1,7 @@
 ---
 layout: post
 title:  "Nifty 1.4.2 has been released"
-date:   2016-05-04 01:00:00
+date:   2016-05-03 01:00:00
 categories: blog update
 comments: true
 image:
@@ -32,16 +32,17 @@ Here are the download links for Nifty 1.4.2:
 
 For all Maven users:
 
-* **Nifty 1.4.2 is available in the Maven central** :)
+* **Nifty 1.4.2 is available in the Maven central**
 * The groupId has changed from `de.lessvoid` to `com.github.nifty-gui`
 
-{% highlight XML %}
+Dependency:
+```xml
 <dependency>
-<groupId>com.github.nifty-gui</groupId>
-<artifactId>nifty</artifactId>
-<version>1.4.2</version>
+  <groupId>com.github.nifty-gui</groupId>
+  <artifactId>nifty</artifactId>
+  <version>1.4.2</version>
 </dependency>
-{% endhighlight %}
+```
 
 ### We need less external dependencies now
 
@@ -55,7 +56,7 @@ The following dependencies are NOT needed anymore on the classpath and should ac
 
 You can run the following commands to download and run the Nifty examples from a commandline prompt. The commands given are for running the examples on Mac OS X but it should be easily modifiable to run under Windows and Linux as well.
 
-{% highlight bash %}
+```bash
 # This runs the LWJGL example but you can use the same mechanism to run the examples for the
 # other supported systems as well. Just swap-out the nifty-*-renderer jar.
 cd /tmp
@@ -83,6 +84,6 @@ nifty-1.4.2/dependencies/xpp3-1.1.4c.jar:\
 lwjgl-2.9.3/jar/lwjgl.jar \
 -Djava.library.path=lwjgl-2.9.3/native/macosx/ \
 de.lessvoid.nifty.examples.lwjgl.defaultcontrols.ControlsDemoMain
-{% endhighlight %}
+```
 
 void
