@@ -9,7 +9,7 @@ url:              http://void256.github.io/blog
 
 permalink:   /:categories/:title/
 markdown:    kramdown
-highlighter: Rouge
+highlighter: rouge
 sass:
   sass_dir: _sass
   style: compressed
@@ -22,6 +22,7 @@ kramdown:
   entity_output: as_char
   toc_levels: 1..6
   enable_coderay: false
+  input: GFM
 
 # Site owner
 owner:
