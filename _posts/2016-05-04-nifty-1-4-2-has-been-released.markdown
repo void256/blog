@@ -36,6 +36,7 @@ For all Maven users:
 * The groupId has changed from `de.lessvoid` to `com.github.nifty-gui`
 
 Dependency:
+
 ```xml
 <dependency>
   <groupId>com.github.nifty-gui</groupId>
