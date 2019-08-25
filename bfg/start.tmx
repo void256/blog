@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.0" orientation="orthogonal" width="64" height="32" tilewidth="8" tileheight="8">
+ <properties>
+  <property name="hideHUD" value="true"/>
+  <property name="isCutScene" value="true"/>
+ </properties>
+ <tileset firstgid="1" name="start" tilewidth="8" tileheight="8">
+  <image source="start.png" width="256" height="512"/>
+ </tileset>
+ <layer name="stuff" width="64" height="32">
+  <data encoding="base64" compression="zlib">
+   eJztllsOAiEMRdnB7H89aozxR426Al/LkI+SGNKW8nIGvSdpLnRoKWEYxjkAgMZEpvm455pfypHrm5RxLeDWKPly29wc1rksdbbAOleJcnso5ZVineJrQU5NXJzFX+PT6mxFj/Pfaq+t5wmAb1H7HlvGLZmSu03LM8KaP5H2MG6n9rT3v00vau4xLs8o6w6U3G2pczLaOwAA+E1OpGfSLeklUhf1Q9yKdBPFB66kx8i/jsbvSPekB7lksBDu3h7ent5eQh8AAObiNncBRlLfUa0PAAD/zhunmi1m
+  </data>
+ </layer>
+ <layer name="platform" width="64" height="32">
+  <properties>
+   <property name="type" value="platform"/>
+  </properties>
+  <data encoding="base64" compression="zlib">
+   eJztw0EJAAAIBDDBfkax/9Me3garAgAAAAAAAOCD6ewb/gACIzCB
+  </data>
+ </layer>
+ <objectgroup name="objects" width="64" height="32">
+  <object name="IntroKnete" type="playerStart" x="16" y="152" width="24" height="24">
+   <properties>
+    <property name="introKnete" value="true"/>
+   </properties>
+  </object>
+  <object name="Owl" type="enemy" x="472" y="208" width="24" height="24"/>
+ </objectgroup>
+</map>

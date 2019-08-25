@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.0" orientation="orthogonal" width="64" height="16" tilewidth="16" tileheight="16">
+ <properties>
+  <property name="playerStartMessage" value="It's time to kick more owls!"/>
+  <property name="stageName" value="02"/>
+  <property name="startMessage" value="Planet: OWL, Underground"/>
+  <property name="startMessagePosition" value="bottom"/>
+ </properties>
+ <tileset firstgid="1" name="bfgcs" tilewidth="16" tileheight="16">
+  <image source="bfgcs-level-1.png" width="256" height="512"/>
+  <tile id="1">
+   <properties>
+    <property name="type" value="bonus"/>
+   </properties>
+  </tile>
+  <tile id="12">
+   <properties>
+    <property name="type" value="bridge"/>
+   </properties>
+  </tile>
+  <tile id="13">
+   <properties>
+    <property name="type" value="bridge"/>
+   </properties>
+  </tile>
+  <tile id="14">
+   <properties>
+    <property name="type" value="bridge"/>
+   </properties>
+  </tile>
+  <tile id="15">
+   <properties>
+    <property name="type" value="bridge"/>
+   </properties>
+  </tile>
+  <tile id="34">
+   <properties>
+    <property name="powerUp" value="true"/>
+    <property name="type" value="bonus"/>
+   </properties>
+  </tile>
+  <tile id="136">
+   <properties>
+    <property name="type" value="transparent"/>
+   </properties>
+  </tile>
+  <tile id="137">
+   <properties>
+    <property name="type" value="transparent"/>
+   </properties>
+  </tile>
+  <tile id="138">
+   <properties>
+    <property name="type" value="transparent"/>
+   </properties>
+  </tile>
+  <tile id="184">
+   <properties>
+    <property name="type" value="transparent"/>
+   </properties>
+  </tile>
+  <tile id="190">
+   <properties>
+    <property name="bla" value="42"/>
+   </properties>
+  </tile>
+  <tile id="199">
+   <properties>
+    <property name="type" value="transparent"/>
+   </properties>
+  </tile>
+  <tile id="200">
+   <properties>
+    <property name="type" value="transparent"/>
+   </properties>
+  </tile>
+  <tile id="416">
+   <properties>
+    <property name="score" value="10"/>
+    <property name="type" value="gem"/>
+   </properties>
+  </tile>
+  <tile id="417">
+   <properties>
+    <property name="animateTileIndex" value="105"/>
+    <property name="score" value="25"/>
+    <property name="type" value="gem"/>
+   </properties>
+  </tile>
+  <tile id="418">
+   <properties>
+    <property name="score" value="50"/>
+    <property name="type" value="gem"/>
+   </properties>
+  </tile>
+ </tileset>
+ <layer name="Platforms" width="64" height="16">
+  <properties>
+   <property name="speed" value="1"/>
+   <property name="type" value="platform"/>
+  </properties>
+  <data encoding="base64" compression="zlib">
+   eJztljEOgCAMRcVF76EXV2fdHXR30DOJMU1IpNBCHRBf8pcmCk9oY13wqT+WnMnFf1D2eor+vbpjo0RSIe9K0Z/Tt/CtvuRP4brvnUrD/9qr1KyuHLEh7Y/1pqtnwa1Xz5jP+/aKObrg+LscAJg31Lq5jxj/EHdYlwrFPxSJ8w9d1wecHdxT31ly16f0+1v/atLvHHUmRj0G8340SN2HtP+iszLqMWA9T50FcyHvv+scjHoMHH/bTNl02j9Z5wTGADox
+  </data>
+ </layer>
+ <objectgroup name="Objekte" width="64" height="16">
+  <object name="Start" type="playerStart" x="64" y="-32" width="32" height="32"/>
+  <object name="Owl" type="enemy" x="384" y="192" width="32" height="32"/>
+  <object name="Owl" type="enemy" x="608" y="128" width="32" height="32">
+   <properties>
+    <property name="" value=""/>
+   </properties>
+  </object>
+  <object name="Owl" type="enemy" x="896" y="64" width="32" height="32"/>
+  <object name="Owl" type="enemy" x="816" y="192" width="32" height="32"/>
+  <object name="End" type="playerEnd" x="992" y="192" width="32" height="32">
+   <properties>
+    <property name="nextLevel" value="levelBoss"/>
+   </properties>
+  </object>
+  <object name="Owl" type="enemy" x="288" y="64" width="32" height="32"/>
+  <object name="Owl" type="enemy" x="896" y="192" width="32" height="32"/>
+  <object name="Owl" type="enemy" x="640" y="64" width="32" height="32"/>
+ </objectgroup>
+</map>

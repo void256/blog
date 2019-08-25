@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.0" orientation="orthogonal" width="32" height="16" tilewidth="16" tileheight="16">
+ <properties>
+  <property name="playerStartMessage" value="So and now what?"/>
+  <property name="stageName" value="03"/>
+  <property name="startMessage" value="Planet: Owl#Lair of Schmitt van Owl"/>
+  <property name="startMessagePosition" value="bottom"/>
+ </properties>
+ <tileset firstgid="1" name="bfgcs-boss" tilewidth="16" tileheight="16">
+  <image source="bfgcs-boss.png" width="256" height="512"/>
+  <tile id="1">
+   <properties>
+    <property name="type" value="bonus"/>
+   </properties>
+  </tile>
+  <tile id="34">
+   <properties>
+    <property name="powerUp" value="true"/>
+    <property name="type" value="bonus"/>
+   </properties>
+  </tile>
+ </tileset>
+ <layer name="Kachelebene 1" width="32" height="16">
+  <properties>
+   <property name="type" value="platform"/>
+  </properties>
+  <data encoding="base64" compression="zlib">
+   eJxjYBgFo2DwAHYgVobSg9nM4Q6oEWaj4U4dQEo4EqOWAwkPBAC5zZeRgcGPceDsh/n/IhBfGiB8GYgfAvGjAcKPgRgAySY4eg==
+  </data>
+ </layer>
+ <layer name="Kachelebene 2" width="32" height="16">
+  <properties>
+   <property name="type" value="overlay"/>
+  </properties>
+  <data encoding="base64" compression="zlib">
+   eJxjYBgFo2AUjIJRMAroB4yheBQMLAAAo2QAZw==
+  </data>
+ </layer>
+ <objectgroup name="Objektebene 1" width="32" height="16">
+  <object name="Start" type="playerStart" x="32" y="0" width="32" height="32"/>
+  <object name="Activate Schmitty" type="switch" x="0" y="208" width="512" height="16">
+   <properties>
+    <property name="action" value="activateBoss"/>
+   </properties>
+  </object>
+ </objectgroup>
+</map>

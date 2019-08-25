@@ -1,0 +1,1033 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+	<title>Thank you for 2012, Black Forest Games!</title>
+	<meta name="author" content="void256">
+
+	<!-- sprite shader -->
+	<script id="sprite-vs" type="x-shader/x-vertex">
+		#ifdef GL_ES
+		precision highp float;
+		#endif
+
+		attribute vec2 aPosition;
+		attribute vec2 aTexture;
+
+		uniform mat4 mvp;
+		uniform vec2 pos;
+
+		varying vec2 vTexture;
+
+		void main(void) {
+			gl_Position = mvp * vec4(aPosition.x + pos.x, aPosition.y + pos.y, 0.0, 1.0);
+			vTexture = aTexture;
+		}
+	</script>
+
+	<script id="sprite-fs" type="x-shader/x-fragment">
+		#ifdef GL_ES
+		precision highp float;
+		#endif
+	
+		uniform sampler2D tex;
+		uniform vec4 alpha;
+		varying vec2 vTexture;
+
+		void main(void) {
+			gl_FragColor = texture2D(tex, vTexture) * alpha;
+		}
+	</script>
+
+	<script src="scripts/gl-matrix.1.3.7.min.js"></script>
+	<script src="scripts/stats.min.js"></script>
+	<script src="scripts/dojo.js"></script>
+	<script src="scripts/bmFont.js"></script>
+
+	<script src="bfgcs-level.js"></script>
+	<script src="bfgcs-textures.js"></script>
+	<script src="bfgcs-player.js"></script>
+	<script src="bfgcs-tilemap.js"></script>
+	<script src="bfgcs-font.js"></script>
+</head>
+<body style="background-color: #000">
+	<br/>
+	<br/>
+
+	<canvas id="myCanvas" width="512" height="256" style="border:1px solid #222; padding-left: 0; padding-right: 0; margin-left: auto; margin-right: auto; display: block;">
+	</canvas>
+<!--
+	<audio>
+	  <source src="horse.mp3" type="audio/mp3">
+	  <source src="horse.ogg" type="audio/ogg">
+	</audio>
+-->
+	<script>
+		// show the FPS counter
+		var showStats = getURLParameters("showStats");
+
+		// render collision information
+		var debugRender = getURLParameters("debugRender");
+
+		// output some debug output to the console
+		var debugConsole = getURLParameters("debugConsole");
+
+		// skip intro
+		var skipIntro = getURLParameters("skipIntro");
+
+		var glWidth = 512.;
+		var glHeight = 256.;
+
+		String.prototype.endsWith = function(suffix) {
+		    return this.indexOf(suffix, this.length - suffix.length) !== -1;
+		};
+
+		function resetKeys() {
+			currentlyPressedKeys[keyLeftArrow] = 0;
+			currentlyPressedKeys[keyUpArrow] = 0;
+			currentlyPressedKeys[keyRightArrow] = 0;
+			currentlyPressedKeys[keyDownArrow] = 0;
+			currentlyPressedKeys[keyW] = 0;
+			currentlyPressedKeys[keyA] = 0;
+			currentlyPressedKeys[keyS] = 0;
+			currentlyPressedKeys[keyD] = 0;
+			currentlyPressedKeys[keySpace] = 0;
+			currentlyPressedKeys[keyCtrl] = 0;
+		}
+
+		function GetReadyText(font) {
+			this.lines = [font.createText("KNETE"), font.createText("GET READY"), font.createText("STAGE 01")];
+			this.theEndLines = [font.createText("KNETE  GET UP"), font.createText("THE SUN HAS FRIGHTENED"), font.createText("OFF THE NIGHT"), font.createText(""), font.createText("TIME TO GET BACK TO BFG"), font.createText("TO CREATE AWESOME GAMES"), font.createText(""), font.createText("")];
+			this.theEndSprite1 = constants["THE_END_1"];
+			this.theEndSprite2 = constants["THE_END_2"];
+
+			this.timeBonusLines = [font.createText("TIME    BONUS     SCORE"), font.createText("")];
+			this.frameCount;
+			this.intermission = font.createText("");
+			this.timeLeftSpeed = 1;
+			this.wait = false;
+
+			this.draw = function() {
+			}
+
+			this.regularDraw = function() {
+				this.frameCount -= 1;
+				if (this.frameCount < 0) {
+					if (this.doneCallback) {
+						this.doneCallback();
+					}
+					return true;
+				}
+				if (this.intermission.currentText && this.intermission.currentText.length > 0) {
+					var x = (glWidth - this.intermission.currentText.length * 8) / 2;
+					var y = (glHeight - 10) / 2;
+					this.intermission.render(x, y);
+					return false;
+				}
+				var y = (glHeight - this.lines.length * 20) / 2;
+				for (i=0; i<this.lines.length; i++) {
+					var x = (glWidth - this.lines[i].currentText.length * 8) / 2;
+					this.lines[i].render(x, y);
+					y += 20;
+				}
+				return false;
+			}
+
+			this.theEndDraw = function() {
+				if (currentlyPressedKeys[keySpace]) {
+					if (this.doneCallback) {
+						this.doneCallback();
+					}
+					return true;
+				}
+				var y = (glHeight - this.theEndLines.length * 20) / 2;
+				for (i=0; i<this.theEndLines.length; i++) {
+					var x = (glWidth - this.theEndLines[i].currentText.length * 8) / 2;
+					this.theEndLines[i].render(x, y);
+					y += 20;
+				}
+
+				this.frameCount += 1;
+				var sprite = this.theEndSprite1;
+				if (Math.floor(this.frameCount % 120) > 60) {
+					sprite = this.theEndSprite2;
+				}
+				this.drawSpriteFunc(glWidth / 2 - 32 / 2, 180, sprite);
+				
+				return false;
+			}
+
+			this.timeBonusDraw = function() {
+				if (this.wait) {
+					this.finalTimer -= 1;
+					if (this.finalTimer < 0) {
+						if (this.doneCallback) {
+							this.doneCallback();
+							return;
+						}
+					}
+				} else {
+					this.frameCount -= 1;
+					if (this.frameCount < 0) {
+						this.frameCount = this.timeLeftSpeed;
+
+						if (this.timeLeft > 0) {
+							this.timeLeft -= 1;
+							this.score.timeBonus();
+						} else {
+							this.wait = true;
+							this.finalTimer = 60;
+						}
+					}
+				}
+				
+				this.timeBonusLines[1].setText(" " + pad(this.timeLeft, 2) + "   X  10   $   " + pad(this.score.score, 6));
+				var y = (glHeight - this.timeBonusLines.length * 20) / 2;
+				for (i=0; i<this.timeBonusLines.length; i++) {
+					var x = (glWidth - this.timeBonusLines[i].currentText.length * 8) / 2;
+					this.timeBonusLines[i].render(x, y);
+					y += 20;
+				}
+			}
+
+			this.setStage = function(stageText, doneCallback) {
+				this.doneCallback = doneCallback;
+				this.intermission.setText("");
+				this.lines[2].setText("STAGE " + stageText);
+				this.frameCount = 150;
+				this.draw = this.regularDraw;
+			}
+
+			this.setIntermission = function(intermissionText, doneCallback) {
+				this.doneCallback = doneCallback;
+				this.intermission.setText(intermissionText);
+				this.frameCount = 250;
+				this.draw = this.regularDraw;
+			}
+
+			this.setTimeBonus = function(score, doneCallback) {
+				this.score = score;
+				this.doneCallback = doneCallback;
+				this.timeLeft = score.time;
+				this.frameCount = this.timeLeftSpeed;
+				this.draw = this.timeBonusDraw;
+				this.wait = false;
+			}
+
+			this.setTheEnd = function(drawSpriteFunc, doneCallback) {
+				this.drawSpriteFunc = drawSpriteFunc;
+				this.doneCallback = doneCallback;
+				this.frameCount = 0;
+				this.draw = this.theEndDraw;
+				resetKeys();
+			}
+		}
+
+		function Message(font) {
+			this.text = font.createText("");
+			this.visible = false;
+			this.timer = 0;
+			this.initText = false;
+
+			this.show = function(x, y, message) {
+				this.x = x - message.length * 4 / 2;
+				this.y = y;
+				this.timer = 60 * 2;
+				this.message = message;
+				this.visible = true;
+				this.initText = true;
+			}
+
+			this.hide = function() {
+				this.visible = false;
+			}
+
+			this.render = function(mapX) {
+				if (!this.visible) {
+					return;
+				}
+				if (this.initText) {
+					this.text.setText(this.message);
+					this.text.enableFade(1.0, 0.0, this.timer);
+					this.initText = false;
+				}
+				this.timer -= 1;
+				if (this.timer < 0) {
+					this.visible = false;
+				}
+				this.y -= 0.5;
+				this.text.render(Math.floor(this.x - mapX), this.y);
+			}
+		}
+
+		function pad(num, places) {
+		  var zero = places - num.toString().length + 1;
+		  return Array(+(zero > 0 && zero)).join("0") + num;
+		}
+
+		// Main Game Loop
+		function Game(currentlyPressedKeys, spriteShader, textures, font, fontSmall) {
+			this.objects = new Array();
+			this.bullets = new Array();
+			this.score = new Score();
+			this.spriteShader = spriteShader;
+			this.currentlyPressedKeys = currentlyPressedKeys;
+			this.font = font;
+			this.fontSmall = fontSmall;
+			this.levelMap = [];
+			this.levelMap["start"] = start;
+			this.levelMap["levelIntro1"] = levelIntro1;
+			this.levelMap["levelIntro2"] = levelIntro2;
+			this.levelMap["level1"] = level1;
+			this.levelMap["level2"] = level2;
+			this.levelMap["levelBoss"] = levelBoss;
+			this.getReadyText = new GetReadyText(font);
+			this.message = new Message(fontSmall);
+
+			this.addObject = function(object) {
+				this.objects.push(object);
+				if (debugConsole) {
+					console.log("active objects: " + this.objects.length);
+				}
+			}
+
+			this.addBullet = function(object) {
+				this.bullets.push(object);
+				if (debugConsole) {
+					console.log("active bullets: " + this.bullets.length);
+				}
+			}
+
+			this.introText;
+			this.hudCaption = font.createText("KNETE         BONUS          LIVES         STAGE          TIME");
+			this.hudUpdate  = font.createText("");
+			this.timeUpdate  = font.createText("");
+			this.happyEndSprite = constants["HAPPY_END"];
+			this.happyEndX;
+			this.happyEndY;
+			this.happyEnd = false;
+			this.happyEndCounter = 0;
+			var that = this;
+
+			function introMessageDoneCallback() {
+				that.player.touchCallbacks["N7_MESSAGE"] = function() {
+					that.introText = new IntroText(10, "TEXTBOX", that.spriteShader, font, that.mainTexture, spriteVertexBuffer, that.currentlyPressedKeys, intro2Text, function() {
+						that.introText = null;
+
+						var obj = that.tileMap.findObject("switch", "action", "PICKUP_SUIT");
+						that.tileMap.updateSingleTile(obj.x / that.tileMap.tileSize + 0, obj.y / that.tileMap.tileSize + 0, 34);
+						that.tileMap.updateSingleTile(obj.x / that.tileMap.tileSize + 1, obj.y / that.tileMap.tileSize + 0, 34);
+						that.tileMap.updateSingleTile(obj.x / that.tileMap.tileSize + 0, obj.y / that.tileMap.tileSize + 1, 35);
+						that.tileMap.updateSingleTile(obj.x / that.tileMap.tileSize + 1, obj.y / that.tileMap.tileSize + 1, 36);
+					});
+				}
+				that.player.touchCallbacks["PICKUP_SUIT"] = function() {
+					that.player.playerSuit = "PLAYER";
+				}
+				that.player.touchCallbacks["TRAP"] = function() {
+					that.player.hide();
+					that.addObject(new Intro1Boss(that, that.spriteShader, spriteVertexBuffer, that.tileMap, 512 - 57, 75, function(obj) {
+						that.introText = new IntroText(10, "TEXTBOX", that.spriteShader, font, that.mainTexture, spriteVertexBuffer, that.currentlyPressedKeys, intro1Text, function() {
+							obj.done();
+							that.introText = null;
+
+							that.draw = that.getReadyDraw;
+							that.getReadyText.setIntermission("Meanwhile somewhere else in space ... near the black forest", function() {
+								that.initLevel("levelIntro2");
+								skipIntro = true;
+							});
+						});
+					}));
+				}
+				that.player.touchCallbacks["catchGiana"] = function() {
+					that.player.hide();
+
+					// remove giana
+					that.tileMap.updateSingleTile(30, 12, 0);
+					that.tileMap.updateSingleTile(31, 12, 0);
+
+					that.happyEnd = true;
+					that.happyEndCounter = 60 * 2;
+					that.happyEndX = that.player.x + 8;
+					that.happyEndY = that.player.y;
+				}
+				that.player.touchCallbacks["activateBoss"] = function() {
+					that.player.shootingAllowed = false;
+					var boss = new Boss(that, that.spriteShader, spriteVertexBuffer, that.tileMap, function(obj) {
+						that.introText = new IntroText(50, "TEXTBOX_BOSS", that.spriteShader, font, that.mainTexture, spriteVertexBuffer, that.currentlyPressedKeys, boss1Text, function() {
+							that.introText = null;
+							currentlyPressedKeys[keySpace] = 0;
+							that.player.shootingAllowed = true;
+							boss.startFight(that.player);
+						});
+					}, function(obj) {
+						// free giana
+						that.tileMap.updateSingleTile(29, 12, 0);
+						that.tileMap.updateSingleTile(29, 13, 0);
+
+						// add a switch to catch giana
+						var switchObjectInfo = {
+					     	"height":2,
+					     	"properties": { "action" : "catchGiana"},
+					     	"type":"switch",
+					     	"width":1,
+							"x":29 * 16,
+							"y":14 * 16
+					    };
+						that.addObject(new Switch(that, that.shader, that.tileMap, switchObjectInfo));
+					});
+					that.addObject(boss);
+				}
+				that.player.endLevelCallback = function(nextLevel) {
+					if (!that.tileMap.isCutScene) {
+						that.draw = that.getReadyDraw;
+						that.getReadyText.setTimeBonus(that.player.score, function() {
+							that.initLevel(nextLevel);
+							that.draw = that.getReadyDraw;
+							that.getReadyText.setStage(that.tileMap.stageName, function() {
+								that.draw = that.regularDraw;
+							});
+						});
+					} else {
+						if (that.levelName == "levelIntro2") {
+							that.draw = that.getReadyDraw;
+							that.getReadyText.setIntermission("Commander Knete is on her way to help giana", function() {
+								that.initLevel(nextLevel);
+							});
+						} else {
+							that.initLevel(nextLevel);
+						}
+					}
+				}
+				that.player.show();
+			}
+
+			this.drawSpriteFunc = function(x, y, sprite) {
+				gl.bindTexture(gl.TEXTURE_2D, that.mainTexture);
+				gl.bindBuffer(gl.ARRAY_BUFFER, spriteVertexBuffer);
+				gl.vertexAttribPointer(that.spriteShader.attribute("aPosition"), 2, gl.FLOAT, false, 4 * 4, 0);
+				gl.vertexAttribPointer(that.spriteShader.attribute("aTexture"), 2, gl.FLOAT, false, 4 * 4, 2 * 4);
+				gl.uniform2fv(that.spriteShader.uniform("pos"), [x, y]);
+				gl.drawArrays(gl.TRIANGLES, sprite.index, 6);
+			}
+
+			var ctx = this;
+			this.regularDraw = function (spriteVertexBuffer) {
+				this.tileMap.updateTileMap();
+
+				gl.bindTexture(gl.TEXTURE_2D, this.mainTexture);
+				this.tileMap.drawBackground();
+
+				gl.bindTexture(gl.TEXTURE_2D, this.mainTexture);
+				gl.bindBuffer(gl.ARRAY_BUFFER, spriteVertexBuffer);
+				this.player.update();
+
+				gl.bindTexture(gl.TEXTURE_2D, this.mainTexture);
+				gl.bindBuffer(gl.ARRAY_BUFFER, spriteVertexBuffer);
+
+				// update and render objects
+				var len = this.objects.length;
+				while (len--) {
+					var currentObj = this.objects[len];
+					if (currentObj.update(this.tileMap.tileMapX)) {
+						this.objects.splice(len, 1);
+						if (debugConsole) {
+							console.log("active objects: " + this.objects.length);
+						}
+					} else {
+						// collision detection
+						if (currentObj.visible) {
+							if (currentObj.collidable) {
+								if (objectCollision(this.player.x, this.player.y, this.player.playerSpriteInfo, currentObj.x, currentObj.y, currentObj.spriteInfo)) {
+									this.player.touches(currentObj);
+								}
+							}
+						}
+
+						// render
+						var spriteX = Math.floor(currentObj.x - this.tileMap.tileMapX);
+						if (spriteX > -64 && spriteX < glWidth + 64) {
+							currentObj.draw(this.tileMap.tileMapX);
+						} else {
+							if (currentObj.outOfScreenDestroy) {
+								this.objects.splice(len, 1);
+								if (debugConsole) {
+									console.log("active objects: " + this.objects.length);
+								}
+							}
+						}
+					}
+				}
+
+				// update and render bullets
+				var len = this.bullets.length;
+				while (len--) {
+					var currentObj = this.bullets[len];
+					if (currentObj.update(this.tileMap.tileMapX)) {
+						this.bullets.splice(len, 1);
+						if (debugConsole) {
+							console.log("active bullets: " + this.bullets.length);
+						}
+					} else {
+						// collision detection - we need to test against all enemies
+						for (i=0; i<this.objects.length; i++) {
+							var o = this.objects[i];
+							if (o.enemy) {
+								if (o.collidable) {
+									if (objectCollision(currentObj.x, currentObj.y, currentObj.spriteInfo, o.x, o.y, o.spriteInfo)) {
+										if (o.makeFlat()) {
+											this.player.score.killEnemy();
+											this.player.randomQuote();
+										}
+										this.bullets.splice(len, 1);
+										if (debugConsole) {
+											console.log("active bullets: " + this.bullets.length);
+										}
+									}
+								}
+							}
+						}
+
+						// render
+						var spriteX = Math.floor(currentObj.x - this.tileMap.tileMapX);
+						if (spriteX > -64 && spriteX < glWidth + 64) {
+							currentObj.draw(this.tileMap.tileMapX);
+						} else {
+							if (currentObj.outOfScreenDestroy) {
+								this.bullets.splice(len, 1);
+								if (debugConsole) {
+									console.log("active bullets: " + this.bullets.length);
+								}
+							}
+						}
+					}
+				}
+
+				// draw player
+				gl.bindBuffer(gl.ARRAY_BUFFER, spriteVertexBuffer);
+				this.player.draw();
+				this.updateHud(this.player.score);
+
+				// draw map overlay
+				this.tileMap.drawOverlay();
+
+				this.message.render(this.tileMap.tileMapX);
+
+				// draw start Message
+				gl.bindTexture(gl.TEXTURE_2D, this.mainTexture);
+				gl.bindBuffer(gl.ARRAY_BUFFER, spriteVertexBuffer);
+				this.tileMap.renderStartMessages();
+
+				// intro text handling
+				if (this.introText) {
+					this.introText.draw();
+				}
+
+				// special start screen input handling
+				if (this.levelName == "start") {
+					if (currentlyPressedKeys[keySpace]) {
+						if (skipIntro) {
+							that.initLevel("level1");
+						} else {
+							that.draw = getReadyDrawFunc;
+							that.getReadyText.setIntermission("In a galaxy far, far away ... on a Planet called OWL", function() {
+								that.initLevel("levelIntro1");
+							});
+						}
+					}
+				}
+
+				// draw HappyEnd
+				if (this.happyEnd) {
+					gl.bindTexture(gl.TEXTURE_2D, this.mainTexture);
+					gl.bindBuffer(gl.ARRAY_BUFFER, spriteVertexBuffer);
+					gl.vertexAttribPointer(this.spriteShader.attribute("aPosition"), 2, gl.FLOAT, false, 4 * 4, 0);
+					gl.vertexAttribPointer(this.spriteShader.attribute("aTexture"), 2, gl.FLOAT, false, 4 * 4, 2 * 4);
+					gl.uniform2fv(this.spriteShader.uniform("pos"), [this.happyEndX, this.happyEndY]);
+					gl.drawArrays(gl.TRIANGLES, this.happyEndSprite.index, 6);
+
+					that.happyEndCounter -= 1;
+					if (that.happyEndCounter < 0) {
+						that.draw = getReadyDrawFunc;
+						that.getReadyText.setTheEnd(that.drawSpriteFunc, function() {
+							that.happyEnd = false;
+							that.initLevel("start");
+						});
+					}
+				}
+
+				// draw HUD
+				if (this.tileMap.showHUD) {
+					// update time
+					if (this.player.visible) {
+						if (this.levelName != "levelBoss") {
+							if (this.score.updateTime()) {
+								this.draw = getReadyDrawFunc;
+								this.getReadyText.setIntermission("TIME OUT", function() {
+									ctx.playerDiesCallback(ctx.player.score.lostLife());
+								});
+							}
+						}
+					}
+
+					this.hudCaption.render(8, 10);
+					this.hudUpdate.render(8, 20);
+					this.timeUpdate.render(glWidth - 3 * 8, 20);
+				}
+
+				// update map position if necessary
+				this.player.updateMoveMap();
+			}
+
+			function getReadyDrawFunc(spriteVertexBuffer) {
+				gl.clearColor(0., 0., 0., 1.0);
+				gl.clear(gl.COLOR_BUFFER_BIT);
+				ctx.getReadyText.draw();
+			}
+
+			this.getReadyDraw = getReadyDrawFunc;
+
+			this.updateHud = function(score) {
+				this.hudUpdate.setText(
+					pad(score.score, 6) + "        $  " +
+					pad(score.bonus, 2) + "             " +
+					pad(score.lives, 2) + "            " +
+					pad(score.stage, 2));
+				if (score.time <= 10) {
+					this.timeUpdate.enableBlink(10);
+					this.timeUpdate.setColor(0.8, 0.0, 0.0, 1.0);
+				} else {
+					this.timeUpdate.disableBlink();
+					this.timeUpdate.setColor(1.0, 1.0, 1.0, 1.0);
+				}
+				this.timeUpdate.setText(pad(score.time, 2));
+			}
+
+			var that = this;
+			this.playerDiesCallback = function(gameover) {
+				that.introText = null;
+
+				if (gameover) {
+					that.draw = getReadyDrawFunc;
+					that.getReadyText.setIntermission("GAME OVER", function() {
+						that.initLevel("start");
+					});
+				} else {
+					that.draw = getReadyDrawFunc;
+					that.getReadyText.setStage(that.tileMap.stageName, function() {
+						if (that.levelName == "levelBoss") {
+							that.initLevel("levelBoss");
+						} else {
+							that.player.reset();
+						}
+						that.draw = that.regularDraw;
+					});
+				}
+			}
+
+			this.initLevel = function(levelName) {
+				if (levelName == "level1") {
+					this.score.reset();
+				}
+				this.objects.length = 0;
+				this.bullets.length = 0;
+				this.message.hide();
+				this.levelName = levelName;
+				this.currentLevel = this.levelMap[this.levelName];
+				if (this.tileMap) {
+					this.tileMap.destroy();
+				}
+
+				resetKeys();
+
+				that.tileMap = new TileMap(spriteShader, that, that.currentLevel, font, introMessageDoneCallback);
+				that.mainTexture = that.tileMap.getTexture(textures);
+				that.player = new Player(that, that.message, currentlyPressedKeys, spriteShader, that.tileMap, this.playerDiesCallback);
+				that.score.time = 99;
+				if (this.tileMap.stageName) {
+					that.score.stage = this.tileMap.stageName;
+				}
+				this.draw = this.regularDraw;
+			}
+
+			this.initLevel("start");
+		}
+
+		var currentlyPressedKeys = {};
+		var gl;
+		var aPosition;
+		var aTexture;
+		var textureWidth = 256;
+		var textureHeight = 512;
+
+		initGL();
+		var spriteShader = new Shader("sprite-vs", "sprite-fs");
+		spriteShader.use();
+		gl.uniform4fv(spriteShader.uniform("alpha"), [1.0, 1.0, 1.0, 1.0]);
+
+		initGlobals();
+		var textures = new Textures();
+		var spriteVertexBuffer = initVertexData(spriteShader);
+		initKeyboard();
+
+		var font = new Font("gessert.xml", textures.get("font"), spriteShader);
+		var fontSmall = new Font("gessert-small.xml", textures.get("font-small"), spriteShader);
+		var game = new Game(currentlyPressedKeys, spriteShader, textures, font, fontSmall);
+		initDrawLoop(game); // 'Game' lives in bfg-game.js
+
+		function Shader(vs, fs) {
+			this.program = createProgram(gl, vs, fs);
+			this.attribLocation = {};
+			this.uniformLocation = {};
+
+			this.use = function() {
+				gl.useProgram(this.program);
+			}
+
+			this.attribute = function(name) {
+				var result = this.attribLocation[name];
+				if (result == null) {
+					result = gl.getAttribLocation(this.program, name);
+					this.attribLocation[name] = result;
+				}
+				return result; 
+			}
+
+			this.uniform = function(name) {
+				var result = this.uniformLocation[name];
+				if (result == null) {
+					result = gl.getUniformLocation(this.program, name);
+					this.uniformLocation[name] = result;
+				}
+				return result; 
+			}
+		}
+
+		function initGL() {
+			if (!window.WebGLRenderingContext) {
+				document.write("Your browser does not support WebGL :'(<br><br>Try another (more modern) browser or update your browser version. You can find more details about WebGL at <a href='http://get.webgl.org'>http://get.webgl.org</a>");
+				throw new Error('No WebGL support. Javascript execution stopped.');
+			}
+
+			var canvas = document.getElementById('myCanvas');
+			gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+			gl.viewport(0, 0, glWidth, glHeight);
+
+			console.log("WebGL VERSION: " + gl.getParameter(gl.VERSION));
+			console.log("WebGL SHADING_LANGUAGE_VERSION: " + gl.getParameter(gl.SHADING_LANGUAGE_VERSION));
+			console.log("WebGL VENDOR: " + gl.getParameter(gl.VENDOR));
+			console.log("WebGL RENDERER: " + gl.getParameter(gl.RENDERER));
+		}
+
+		function initVertexData(program) {
+			var points = new Array();
+			addSpriteInternal("DEBUG",     points, 15,15, false, 0,0,0,0, 0, 0, 16, 16);
+			//                name             x  y   bx0  by0  bx1  by1
+			addSprite("PLAYER_STANDING",   points, 32, 32, 0, 0,    4,   4,  23,  31,  0, 0);
+			addSprite("PLAYER_TIRED",      points, 32, 32, 1, 0,    4,   4,  23,  31,  0, 0);
+			addSprite("PLAYER_WALK_0",     points, 32, 32, 2, 0,    4,   4,  23,  31,  0, 0);
+			addSprite("PLAYER_WALK_1",     points, 32, 32, 3, 0,    4,   4,  23,  31,  0, 0);
+			addSprite("PLAYER_WALK_2",     points, 32, 32, 4, 0,    4,   4,  23,  31,  0, 0);
+			addSprite("PLAYER_WALK_3",     points, 32, 32, 5, 0,    4,   4,  23,  31,  0, 0);
+			addSprite("PLAYER_WALK_4",     points, 32, 32, 4, 0,    4,   4,  23,  31,  0, 0);
+			addSprite("PLAYER_JUMP",       points, 32, 32, 6, 0,    4,   4,  23,  31,  0, 0);
+
+			addSprite("PLAYER_STANDING_S", points, 32, 32, 0, 1,    4,   4,  23,  31, 20, 16);
+			addSprite("PLAYER_TIRED_S",    points, 32, 32, 1, 1,    4,   4,  23,  31, 20, 16);
+			addSprite("PLAYER_WALK_0_S",   points, 32, 32, 2, 1,    4,   4,  23,  31, 20, 16);
+			addSprite("PLAYER_WALK_1_S",   points, 32, 32, 3, 1,    4,   4,  23,  31, 20, 16);
+			addSprite("PLAYER_WALK_2_S",   points, 32, 32, 4, 1,    4,   4,  23,  31, 20, 16);
+			addSprite("PLAYER_WALK_3_S",   points, 32, 32, 5, 1,    4,   4,  23,  31, 20, 16);
+			addSprite("PLAYER_WALK_4_S",   points, 32, 32, 4, 1,    4,   4,  23,  31, 20, 16);
+			addSprite("PLAYER_JUMP_S",     points, 32, 32, 6, 1,    4,   4,  23,  31, 20, 16);
+
+			addSprite("PLAYER_DIE",        points, 32, 32, 7, 2,    0,   0,  16,  16, 20, 16);
+			addSprite("PLAYER_DIE_PART1",  points, 16, 16, 8,10,    0,   0,  16,  16,  0, 0);
+			addSprite("PLAYER_DIE_PART2",  points, 16, 16, 9,10,    0,   0,  16,  16,  0, 0);
+			addSprite("PLAYER_DIE_PART3",  points, 16, 16, 8,11,    0,   0,  16,  16,  0, 0);
+			addSprite("PLAYER_DIE_PART4",  points, 16, 16, 9,11,    0,   0,  16,  16,  0, 0);
+
+			addSprite("INTRO_STANDING",    points, 32, 32, 0, 2,    4,   4,  23,  31,  0, 0);
+			addSprite("INTRO_TIRED",       points, 32, 32, 1, 2,    4,   4,  23,  31,  0, 0);
+			addSprite("INTRO_WALK_0",      points, 32, 32, 2, 2,    4,   4,  23,  31,  0, 0);
+			addSprite("INTRO_WALK_1",      points, 32, 32, 3, 2,    4,   4,  23,  31,  0, 0);
+			addSprite("INTRO_WALK_2",      points, 32, 32, 4, 2,    4,   4,  23,  31,  0, 0);
+			addSprite("INTRO_WALK_3",      points, 32, 32, 5, 2,    4,   4,  23,  31,  0, 0);
+			addSprite("INTRO_WALK_4",      points, 32, 32, 4, 2,    4,   4,  23,  31,  0, 0);
+			addSprite("INTRO_JUMP",        points, 32, 32, 6, 2,    4,   4,  23,  31,  0, 0);
+
+			addSprite("BULLET",            points, 16, 16, 0, 8,    2,   6,  12,  12, 0, 0);
+			addSprite("BULLET_KILLED",     points, 16, 16, 1, 8,    4,   4,  11,  11, 0, 0);
+
+			addSprite("OWL_WALK_0",        points, 32, 32, 3, 4,    9,  16,  24,  31, 0, 0);
+			addSprite("OWL_WALK_1",        points, 32, 32, 4, 4,    9,  16,  24,  31, 0, 0);
+			addSprite("OWL_WALK_FLAT",     points, 32, 32, 5, 4,    9,  16,  24,  31, 0, 0);
+			addSprite("OWL_FLY",           points, 32, 32, 6, 4,    9,   5,  27,  31, 0, 0);
+			addSprite("OWL_STANDING",      points, 32, 32, 7, 4,    9,  16,  24,  31, 0, 0);
+
+			addSprite("PLAYER_SUIT",       points, 32, 32, 1, 7,    3,  14,  24,  31, 0, 0);
+			addSprite("INTRO_MESSAGE",     points, 32, 32, 2, 7,    0,   0,  31,  31, 0, 0);
+
+			addSpriteNoMirror("BONUS",     points, 16, 16, 0, 9,    0,   0,  16,  16, 0, 0);
+			addSpriteNoMirror("POWER-UP",  points, 16, 16, 6, 10,    0,   0,  16,  16, 0, 0);
+
+			addSpriteNoMirror("TEXTBOX_LEFT",   points, 64, 64, 0, 2,    0,   0, 256,  48, 0, 0);
+			addSpriteNoMirror("TEXTBOX_RIGHT",  points, 64, 64, 1, 2,    0,   0, 256,  48, 0, 0);
+			addSpriteNoMirror("TEXTBOX_MIDDLE", points, 64, 64, 2, 2,    0,   0, 256,  48, 0, 0);
+
+			addSpriteNoMirror("TEXTBOX_BOSS_LEFT",   points, 64, 64, 0, 3,    0,   0, 256,  48, 0, 0);
+			addSpriteNoMirror("TEXTBOX_BOSS_RIGHT",  points, 64, 64, 1, 3,    0,   0, 256,  48, 0, 0);
+			addSpriteNoMirror("TEXTBOX_BOSS_MIDDLE", points, 64, 64, 0.5, 2,    0,   0, 256,  48, 0, 0);
+
+			addSpriteNoMirror("P_GIANA_SAD",         points, 32, 32, 0, 3,  0, 0, 32, 32, 0, 0);
+			addSpriteNoMirror("P_GIANA_HAPPY",       points, 32, 32, 1, 3,  0, 0, 32, 32, 0, 0);
+			addSpriteNoMirror("P_KNETE_NEUTRAL",     points, 32, 32, 2, 3,  0, 0, 32, 32, 0, 0);
+			addSpriteNoMirror("P_KNETE_HAPPY",       points, 32, 32, 3, 3,  0, 0, 32, 32, 0, 0);
+			addSpriteNoMirror("P_KNETE_BLUSH",       points, 32, 32, 7, 4,  0, 0, 32, 32, 0, 0);
+			addSpriteNoMirror("P_SCHMITTY_SMILE",    points, 32, 32, 4, 3,  0, 0, 32, 32, 0, 0);
+			addSpriteNoMirror("P_SCHMITTY_NEUTRAL",  points, 32, 32, 5, 3,  0, 0, 32, 32, 0, 0);
+			addSpriteNoMirror("P_SHEPARD",           points, 32, 32, 6, 3,  0, 0, 32, 32, 0, 0);
+			addSpriteNoMirror("P_BLACK",             points, 32, 32, 6, 4,  0, 0, 32, 32, 0, 0);
+
+			addSprite("INTRO1_BOSS_0",               points, 80, 64, 0, 3,  0, 0, 80, 64, 0, 0);
+			addSprite("INTRO1_BOSS_1",               points, 80, 64, 1, 3,  0, 0, 80, 64, 0, 0);
+			addSprite("INTRO1_BOSS_2",               points, 80, 64, 2, 3,  0, 0, 80, 64, 0, 0);
+			addSprite("INTRO1_BOSS_TOP",             points, 64, 16, 3,11,  0, 0, 64, 16, 0, 0);
+
+			addSpriteNoMirror("BOSS",                points,128, 64, 1, 3, 32, 5, 32 + 64, 5 + 55, 64, 64);
+			addSpriteNoMirror("BOSS_FACE_L",         points, 32, 32, 6, 3,  0, 0, 32, 32, 0, 0);
+			addSpriteNoMirror("BOSS_FACE_R",         points, 32, 32, 7, 3,  0, 0, 32, 32, 0, 0);
+			addSpriteNoMirror("BOSS_FACE_HIT",       points, 32, 32, 1, 2,  0, 0, 32, 32, 0, 0);
+			addSpriteNoMirror("BOSS_ENGINE_L_LOW",   points, 16, 16, 0, 9,  0, 0, 16, 16, 0, 0);
+			addSpriteNoMirror("BOSS_ENGINE_R_LOW",   points, 16, 16, 1, 9,  0, 0, 16, 16, 0, 0);
+			addSpriteNoMirror("BOSS_ENGINE_L_HIGH",  points, 16, 16, 0,10,  0, 0, 16, 16, 0, 0);
+			addSpriteNoMirror("BOSS_ENGINE_R_HIGH",  points, 16, 16, 1,10,  0, 0, 16, 16, 0, 0);
+
+			addSpriteNoMirror("BOSS_KILL_1",         points, 32, 32, 4, 6,  0, 0, 32, 32, 0, 0);
+			addSpriteNoMirror("BOSS_KILL_2",         points, 32, 32, 5, 6,  0, 0, 32, 32, 0, 0);
+			addSpriteNoMirror("BOSS_KILL_3",         points, 32, 32, 6, 6,  0, 0, 32, 32, 0, 0);
+			addSpriteNoMirror("BOSS_KILL_4",         points, 32, 32, 7, 6,  0, 0, 32, 32, 0, 0);
+			addSpriteNoMirror("BOSS_KILL_5",         points, 32, 32, 5, 7,  0, 0, 32, 32, 0, 0);
+			addSpriteNoMirror("BOSS_KILL_6",         points, 32, 32, 6, 7,  0, 0, 32, 32, 0, 0);
+
+			addSpriteNoMirror("HAPPY_END",           points, 32, 32, 5, 5,  0, 0, 32, 32, 0, 0);
+			addSpriteNoMirror("THE_END_1",           points, 32, 32, 6, 5,  0, 0, 32, 32, 0, 0);
+			addSpriteNoMirror("THE_END_2",           points, 32, 32, 7, 5,  0, 0, 32, 32, 0, 0);
+
+			var buffer = gl.createBuffer();
+			gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+			gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(points), gl.STATIC_DRAW);
+
+			gl.enableVertexAttribArray(spriteShader.attribute("aPosition"));
+			gl.vertexAttribPointer(spriteShader.attribute("aPosition"), 2, gl.FLOAT, false, 4*4, 0);
+
+			gl.enableVertexAttribArray(spriteShader.attribute("aTexture"));
+			gl.vertexAttribPointer(spriteShader.attribute("aTexture"), 2, gl.FLOAT, false, 4*4, 2*4);
+			return buffer;
+		}
+
+		function addSprite(id, points, spriteSizeX, spriteSizeY, ix, iy, bx0, by0, bx1, by1, sx, sy) {
+			addSpriteInternal(id, points, ix, iy, false, bx0, by0, bx1, by1, sx, sy, spriteSizeX, spriteSizeY);
+			addSpriteInternal(id, points, ix, iy, true, bx0, by0, bx1, by1, sx, sy, spriteSizeX, spriteSizeY);
+		}
+
+		function addSpriteNoMirror(id, points, spriteSizeX, spriteSizeY, ix, iy, bx0, by0, bx1, by1, sx, sy) {
+			addSpriteInternal(id, points, ix, iy, false, bx0, by0, bx1, by1, sx, sy, spriteSizeX, spriteSizeY);
+		}
+
+		function addSpriteInternal(id, points, ix, iy, mirror, bx0, by0, bx1, by1, sx, sy, spriteSizeX, spriteSizeY) {
+			var name = id;
+			var spriteOffsetY = textureHeight / 2;
+			var u0 = (0.5 / textureWidth) + ((ix * spriteSizeX) / textureWidth);
+			var v0 = (0.5 / textureHeight) + ((iy * spriteSizeY + spriteOffsetY) / textureHeight);
+			var u1 = (0.5 / textureWidth) + ((ix * spriteSizeX + spriteSizeX - 1) / textureWidth);
+			var v1 = (0.5 / textureHeight) + ((iy * spriteSizeY + spriteOffsetY + spriteSizeY - 1) / textureHeight);
+
+			var spriteInfo = {
+				index : points.length / 4,
+				width : spriteSizeX,
+				height : spriteSizeY,
+				bx0 : bx0,
+				by0 : by0,
+				bx1 : bx1,
+				by1 : by1,
+				sx : sx,
+				sy : sy
+			};
+			if (mirror) {
+				var uTmp = u1;
+
+				name = id + "_M";
+				u1 = u0;
+				u0 = uTmp;
+				spriteInfo.bx0 = spriteSizeX - bx1;
+				spriteInfo.bx1 = spriteSizeX - bx0;
+				spriteInfo.sx = spriteSizeX - sx;
+			}
+			constants[name] = spriteInfo;
+			
+			points.push(0);
+			points.push(0);
+			points.push(u0);
+			points.push(v0);
+
+			points.push(spriteSizeX);
+			points.push(0);
+			points.push(u1);
+			points.push(v0);
+
+			points.push(spriteSizeX);
+			points.push(spriteSizeY);
+			points.push(u1);
+			points.push(v1);
+
+			points.push(spriteSizeX);
+			points.push(spriteSizeY);
+			points.push(u1);
+			points.push(v1);
+
+			points.push(0);
+			points.push(spriteSizeY);
+			points.push(u0);
+			points.push(v1);
+
+			points.push(0);
+			points.push(0);
+			points.push(u0);
+			points.push(v0);
+		}
+
+		function initGlobals() {
+			gl.activeTexture(gl.TEXTURE0);
+			var ortho = mat4.ortho(0, glWidth, glHeight, 0, -9999, 9999);
+
+			spriteShader.use();
+    		gl.uniform1i(spriteShader.uniform("tex"), 0);
+			gl.uniformMatrix4fv(spriteShader.uniform("mvp"), false, ortho);
+
+			gl.clearColor(0., 0., 0., 1.0);
+			gl.clear(gl.COLOR_BUFFER_BIT);
+	    	gl.enable(gl.BLEND);
+	    	gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+		}
+
+		function initKeyboard() {
+			document.onkeydown = handleKeyDown;
+			document.onkeyup = handleKeyUp;
+		}
+
+		function initDrawLoop() {
+			if (showStats) {
+				stats = new Stats();
+				stats.setMode(0); // 0: fps, 1: ms
+				stats.domElement.style.position = 'absolute';
+				stats.domElement.style.left = '0px';
+				stats.domElement.style.top = '0px';
+				document.body.appendChild(stats.domElement);
+			}
+
+			window.requestAnimFrame = (function(){   
+		   		return window.requestAnimationFrame  ||    
+		     		window.webkitRequestAnimationFrame ||    
+		     		window.mozRequestAnimationFrame ||    
+		     		window.oRequestAnimationFrame  ||    
+		     		window.msRequestAnimationFrame  ||    
+		     		function(callback, element){   
+		      			window.setTimeout(callback, 1000 / 60);   
+		     		};   
+		   		})();
+			draw();
+		}
+
+		function draw() {
+			if (showStats) {
+				stats.begin();
+			}
+			game.draw(spriteVertexBuffer);
+			if (showStats) {
+				stats.end();
+			}
+
+			window.requestAnimFrame(draw);
+		}
+
+  		function handleKeyDown(event) {
+			currentlyPressedKeys[event.keyCode] = true;
+		}
+
+		function handleKeyUp(event) {
+			currentlyPressedKeys[event.keyCode] = false;
+		}
+
+		function createProgram(gl, vsId, fsId) {
+			var program = gl.createProgram();
+			gl.attachShader(program, createShader(gl, vsId));
+			gl.attachShader(program, createShader(gl, fsId));
+			gl.linkProgram(program);
+			if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+				alert(gl.getShaderInfoLog(program));
+			}
+			gl.useProgram(program)
+			return program;
+		}
+
+		function createShader(gl, id) {
+			var shaderScript = document.getElementById(id);
+			if (!shaderScript) {
+				alert("shader source with id '" + id + "'")
+				return null;
+			}
+			var source = "";
+			var k = shaderScript.firstChild;
+			while (k) {
+				if (k.nodeType == 3)
+					source += k.textContent;
+				k = k.nextSibling;
+			}
+			var shader;
+			if (shaderScript.type == "x-shader/x-fragment") {
+				shader = gl.createShader(gl.FRAGMENT_SHADER);
+			} else if (shaderScript.type == "x-shader/x-vertex") {
+				shader = gl.createShader(gl.VERTEX_SHADER);
+			} else {
+		    	return null;
+			}
+			gl.shaderSource(shader, source);
+			gl.compileShader(shader);
+			if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+				alert(gl.getShaderInfoLog(shader));
+			    return null;
+			}
+			return shader;
+		}
+
+		function getURLParameters(paramName) {
+	        var sURL = window.document.URL.toString();  
+		    if (sURL.indexOf("?") > 0) {
+		       var arrParams = sURL.split("?");         
+		       var arrURLParams = arrParams[1].split("&");      
+		       var arrParamNames = new Array(arrURLParams.length);
+		       var arrParamValues = new Array(arrURLParams.length);     
+		       var i = 0;
+		       for (i=0;i<arrURLParams.length;i++) {
+		        var sParam =  arrURLParams[i].split("=");
+		        arrParamNames[i] = sParam[0];
+		        if (sParam[1] != "")
+		            arrParamValues[i] = unescape(sParam[1]);
+		        else
+		            arrParamValues[i] = "No Value";
+		       }
+
+		       for (i=0;i<arrURLParams.length;i++)
+		       {
+		                if(arrParamNames[i] == paramName) {
+		                	return true;
+		             }
+		       }
+		       return false;
+		    }
+		}
+	</script>
+
+</body>
+</html>
